@@ -67,6 +67,13 @@
             border-radius: 5px;
             padding: 10px;
         }
+        .edit-mode input {
+            background-color: #f9f9f9;
+            border: none;
+        }
+        .edit-mode button {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -75,27 +82,24 @@
         <div id="weeksContainer" class="weeks-container"></div>
         <div class="summary">
             <p>Total Weekly Hours: <span id="totalHours">0</span></p>
-            <p>Weekly Points: <span id="weeklyPoints">0</span></p>
             <p>Total Reward Points: <span id="totalRewardPoints">0</span></p>
         </div>
-        <button onclick="calculateAllWeeks()">Calculate All Rewards</button>
     </div>
 
     <script>
         const weeks = 52; // Total weeks to track
         const startDate = new Date('2025-01-19'); // Start date for Week 1, Sunday
+        const weeklyData = {}; // To store weekly data
 
-        // Create the weeks UI
         function createWeeksUI() {
             const weeksContainer = document.getElementById('weeksContainer');
             for (let i = 1; i <= weeks; i++) {
                 const weekDiv = document.createElement('div');
                 weekDiv.className = 'week-item';
+                weekDiv.setAttribute('id', `week${i}`);
 
-                // Calculate dates for the week
                 const weekStartDate = new Date(startDate);
                 weekStartDate.setDate(startDate.getDate() + (i - 1) * 7);
-
                 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const dayRows = days.map((day, index) => {
                     const currentDate = new Date(weekStartDate);
@@ -120,60 +124,82 @@
                     <div>
                         <p>Weekly Hours: <span id="week${i}_hours">0</span></p>
                         <p>Reward Points: <span id="week${i}_points">0</span></p>
+                        <button onclick="calculateWeek(${i})">Submit Week</button>
+                        <button onclick="editWeek(${i})" style="display:none;">Edit Week</button>
                     </div>
                 `;
                 weeksContainer.appendChild(weekDiv);
             }
         }
 
-        // Calculate rewards for all weeks
-        function calculateAllWeeks() {
+        function calculateWeek(weekNumber) {
+            const dailyInputs = [
+                `week${weekNumber}_sunday`, `week${weekNumber}_monday`, `week${weekNumber}_tuesday`, `week${weekNumber}_wednesday`, `week${weekNumber}_thursday`, `week${weekNumber}_friday`, `week${weekNumber}_saturday`
+            ];
+
+            let weeklyHours = 0;
+            let weekPoints = 0;
+            let fridayHours = parseInt(document.getElementById(`week${weekNumber}_friday`).value) || 0;
+            let saturdayHours = parseInt(document.getElementById(`week${weekNumber}_saturday`).value) || 0;
+
+            let sundayToThursdayHours = 0;
+            let invalidDay = false;
+            for (let j = 0; j < 5; j++) {
+                const dailyHours = parseInt(document.getElementById(dailyInputs[j]).value) || 0;
+                if (dailyHours < 8) {
+                    invalidDay = true;
+                }
+                sundayToThursdayHours += dailyHours;
+            }
+
+            if (!invalidDay && sundayToThursdayHours >= 40) {
+                if (fridayHours === 14 && sundayToThursdayHours + 14 >= 54) {
+                    weeklyHours = sundayToThursdayHours + 14;
+                    weekPoints = 5000;
+                } else if (fridayHours + saturdayHours === 16 && sundayToThursdayHours + fridayHours + saturdayHours >= 56) {
+                    weeklyHours = sundayToThursdayHours + fridayHours + saturdayHours;
+                    weekPoints = 5000;
+                }
+            }
+
+            document.getElementById(`week${weekNumber}_hours`).textContent = weeklyHours;
+            document.getElementById(`week${weekNumber}_points`).textContent = weekPoints;
+
+            weeklyData[weekNumber] = { weeklyHours, weekPoints };
+
+            lockWeek(weekNumber);
+            updateTotals();
+        }
+
+        function lockWeek(weekNumber) {
+            const weekDiv = document.getElementById(`week${weekNumber}`);
+            weekDiv.querySelectorAll('input').forEach(input => input.setAttribute('disabled', 'true'));
+            weekDiv.querySelector('button[onclick^="calculateWeek"]').style.display = 'none';
+            weekDiv.querySelector('button[onclick^="editWeek"]').style.display = 'inline';
+        }
+
+        function editWeek(weekNumber) {
+            const weekDiv = document.getElementById(`week${weekNumber}`);
+            weekDiv.querySelectorAll('input').forEach(input => input.removeAttribute('disabled'));
+            weekDiv.querySelector('button[onclick^="calculateWeek"]').style.display = 'inline';
+            weekDiv.querySelector('button[onclick^="editWeek"]').style.display = 'none';
+        }
+
+        function updateTotals() {
             let grandTotalHours = 0;
             let grandTotalPoints = 0;
 
             for (let i = 1; i <= weeks; i++) {
-                const dailyInputs = [
-                    `week${i}_sunday`, `week${i}_monday`, `week${i}_tuesday`, `week${i}_wednesday`, `week${i}_thursday`, `week${i}_friday`, `week${i}_saturday`
-                ];
-
-                let weeklyHours = 0;
-                let weekPoints = 0;
-                let fridayHours = parseInt(document.getElementById(`week${i}_friday`).value) || 0;
-                let saturdayHours = parseInt(document.getElementById(`week${i}_saturday`).value) || 0;
-
-                let sundayToThursdayHours = 0;
-                let invalidDay = false;
-                for (let j = 0; j < 5; j++) {
-                    const dailyHours = parseInt(document.getElementById(dailyInputs[j]).value) || 0;
-                    if (dailyHours < 8) {
-                        invalidDay = true;
-                    }
-                    sundayToThursdayHours += dailyHours;
+                if (weeklyData[i]) {
+                    grandTotalHours += weeklyData[i].weeklyHours;
+                    grandTotalPoints += weeklyData[i].weekPoints;
                 }
-
-                if (!invalidDay && sundayToThursdayHours >= 40) {
-                    if (fridayHours === 14 && sundayToThursdayHours + 14 >= 54) {
-                        weeklyHours = sundayToThursdayHours + 14;
-                        weekPoints = 5000;
-                    } else if (fridayHours + saturdayHours === 16 && sundayToThursdayHours + fridayHours + saturdayHours >= 56) {
-                        weeklyHours = sundayToThursdayHours + fridayHours + saturdayHours;
-                        weekPoints = 5000;
-                    }
-                }
-
-                document.getElementById(`week${i}_hours`).textContent = weeklyHours;
-                document.getElementById(`week${i}_points`).textContent = weekPoints;
-
-                grandTotalHours += weeklyHours;
-                grandTotalPoints += weekPoints;
             }
 
             document.getElementById('totalHours').textContent = grandTotalHours;
-            document.getElementById('weeklyPoints').textContent = grandTotalPoints;
             document.getElementById('totalRewardPoints').textContent = grandTotalPoints;
         }
 
-        // Initialize the UI
         createWeeksUI();
     </script>
 </body>
