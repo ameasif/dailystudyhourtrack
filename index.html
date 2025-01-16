@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Study Rewards Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        table th {
+            background-color: #f4f4f4;
+        }
+        .summary {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .summary span {
+            font-weight: bold;
+            color: #2c7be5;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #2c7be5;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #205bb5;
+        }
+        .weeks-container {
+            margin: 20px 0;
+        }
+        .week-item {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Weekly Study Rewards Tracker</h1>
+        <div id="weeksContainer" class="weeks-container"></div>
+        <div class="summary">
+            <p>Total Weekly Hours: <span id="totalHours">0</span></p>
+            <p>Weekly Points: <span id="weeklyPoints">0</span></p>
+            <p>Total Reward Points: <span id="totalRewardPoints">0</span></p>
+        </div>
+        <button onclick="calculateAllWeeks()">Calculate All Rewards</button>
+    </div>
+
+    <script>
+        const weeks = 52; // Total weeks to track
+        const startDate = new Date('2025-01-19'); // Start date for Week 1, Sunday
+
+        // Create the weeks UI
+        function createWeeksUI() {
+            const weeksContainer = document.getElementById('weeksContainer');
+            for (let i = 1; i <= weeks; i++) {
+                const weekDiv = document.createElement('div');
+                weekDiv.className = 'week-item';
+
+                // Calculate dates for the week
+                const weekStartDate = new Date(startDate);
+                weekStartDate.setDate(startDate.getDate() + (i - 1) * 7);
+
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayRows = days.map((day, index) => {
+                    const currentDate = new Date(weekStartDate);
+                    currentDate.setDate(weekStartDate.getDate() + index);
+                    const formattedDate = `${currentDate.getDate()}-${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
+                    return `<tr><td>${day} (${formattedDate})</td><td><input type="number" id="week${i}_${day.toLowerCase()}" min="0" max="24" placeholder="0"></td></tr>`;
+                }).join('');
+
+                weekDiv.innerHTML = `
+                    <h3>Week ${i}</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Study Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${dayRows}
+                        </tbody>
+                    </table>
+                    <div>
+                        <p>Weekly Hours: <span id="week${i}_hours">0</span></p>
+                        <p>Reward Points: <span id="week${i}_points">0</span></p>
+                    </div>
+                `;
+                weeksContainer.appendChild(weekDiv);
+            }
+        }
+
+        // Calculate rewards for all weeks
+        function calculateAllWeeks() {
+            let grandTotalHours = 0;
+            let grandTotalPoints = 0;
+
+            for (let i = 1; i <= weeks; i++) {
+                const dailyInputs = [
+                    `week${i}_sunday`, `week${i}_monday`, `week${i}_tuesday`, `week${i}_wednesday`, `week${i}_thursday`, `week${i}_friday`, `week${i}_saturday`
+                ];
+
+                let weeklyHours = 0;
+                let weekPoints = 0;
+                let fridayHours = parseInt(document.getElementById(`week${i}_friday`).value) || 0;
+                let saturdayHours = parseInt(document.getElementById(`week${i}_saturday`).value) || 0;
+
+                let sundayToThursdayHours = 0;
+                let invalidDay = false;
+                for (let j = 0; j < 5; j++) {
+                    const dailyHours = parseInt(document.getElementById(dailyInputs[j]).value) || 0;
+                    if (dailyHours < 8) {
+                        invalidDay = true;
+                    }
+                    sundayToThursdayHours += dailyHours;
+                }
+
+                if (!invalidDay && sundayToThursdayHours >= 40) {
+                    if (fridayHours === 14 && sundayToThursdayHours + 14 >= 54) {
+                        weeklyHours = sundayToThursdayHours + 14;
+                        weekPoints = 5000;
+                    } else if (fridayHours + saturdayHours === 16 && sundayToThursdayHours + fridayHours + saturdayHours >= 56) {
+                        weeklyHours = sundayToThursdayHours + fridayHours + saturdayHours;
+                        weekPoints = 5000;
+                    }
+                }
+
+                document.getElementById(`week${i}_hours`).textContent = weeklyHours;
+                document.getElementById(`week${i}_points`).textContent = weekPoints;
+
+                grandTotalHours += weeklyHours;
+                grandTotalPoints += weekPoints;
+            }
+
+            document.getElementById('totalHours').textContent = grandTotalHours;
+            document.getElementById('weeklyPoints').textContent = grandTotalPoints;
+            document.getElementById('totalRewardPoints').textContent = grandTotalPoints;
+        }
+
+        // Initialize the UI
+        createWeeksUI();
+    </script>
+</body>
+</html>
